@@ -1,0 +1,15 @@
+Classify the customer's incoming message into one of these intents:
+- greeting (hellos, introductions)
+- property_inquiry (asking what plots we have, sizes, details)
+- pricing_query (asking about rates, price ranges, price per sq yard)
+- investment_query (inquiring about returns, appreciation potential, future growth)
+- documents_query (asking about HMDA, DTCP approvals, title clearance, RERA certification)
+- emi_query (bank loan details, EMI options, down payments)
+- booking_request (asking how to book, booking amount details)
+- site_visit (requesting a physical tour, transport coordination)
+- escalation_request (demanding managers, directors, broker connection)
+- negotiation (asking for discounts, price negotiations)
+- fallback_unknown (anything else)
+
+Respond with the exact name of the intent, followed by confidence rating (e.g., pricing_query, 0.95).
+Do not output any introductory or supplementary text.

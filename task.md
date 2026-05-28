@@ -1,0 +1,22 @@
+# Refactor Checklist: Phase 6 Final Deployment & Submission
+
+- [x] 1. PREPARE FRONTEND FOR VERCEL DEPLOYMENT
+  - [x] Configure dynamic VITE_API_URL in `App.tsx` (remove hardcoded localhost)
+  - [x] Verify `vercel.json` SPA redirection rewrites are operational
+  - [x] Validate build compiles with zero TypeScript errors or warnings
+- [x] 2. PREPARE BACKEND FOR RENDER DEPLOYMENT
+  - [x] Standardize requirements.txt dependencies
+  - [x] Refactor FastAPI CORS allowed origins to load dynamically from CORS_ORIGIN env variable
+  - [x] Verify offline DEMO_MODE startup behaves cleanly
+- [x] 3. CREATE CLEAN PRODUCTION ENVIRONMENT FLOW
+  - [x] Create `backend/.env.example` template config
+  - [x] Create `frontend/.env.example` template config
+- [x] 4. FINAL README PORTFOLIO OPTIMIZATION
+  - [x] Format README.md exactly with the 13 required sections in order
+  - [x] Optimize visual diagrams, screens guide, API route lists, and deployment guides
+- [x] 5. GITHUB PORTFOLIO OPTIMIZATION
+  - [x] Verify that screenshots link directory contains valid, high-resolution dark-mode mockups
+  - [x] Keep project dependencies, folder trees, and code files clean and modular
+- [x] 6. FINAL BUILD & RUN VALIDATION
+  - [x] Run `npm run build` to confirm production package build completes cleanly
+  - [x] Confirm local background FastAPI and Vite servers start up cleanly in tandem

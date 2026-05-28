@@ -1,0 +1,37 @@
+# PropAgent AI: Project gitignore config
+
+# Frontend Build & Dependency Exclusions
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Backend Cache & Environments Exclusions
+backend/__pycache__/
+backend/*.pyc
+backend/.venv/
+backend/env/
+
+# Environment Configuration Files (Contains secrets)
+.env
+.env.local
+.env.development
+.env.production
+backend/.env
+backend/.env.development
+backend/.env.production
+frontend/.env
+frontend/.env.local
+
+# OS Specific Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor Settings
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

@@ -1,0 +1,7 @@
+You are compiling a property recommendation details summary.
+Formulate a highly persuasive explanation (1-2 sentences) of why the selected plot matches the customer's budget and location preferences.
+Focus on:
+- Infrastructure: proximity to ORR, regional highway widening.
+- Budget suitability: falls perfectly within budget bracket.
+- Lifestyle/security: gated community, approved status (HMDA/DTCP).
+Keep the tone energetic, professional, and reassuring.
