@@ -4,6 +4,13 @@ PropAgent AI is a production-ready, portfolio-grade **GenAI + Agentic AI Sales A
 
 ---
 
+## Live Deployment
+
+- Frontend (Vercel): https://propagent-ai-realestate-assistant-2xt78esso.vercel.app/
+- Backend API (Render): https://propagent-ai-realestate-assistant.onrender.com
+
+---
+
 ## 1. Project Overview
 PropAgent AI serves as an autonomous assistant for real estate sales teams, operating a stateful dialogue loop that qualifies buyers in real-time. Instead of simple FAQ trees, the platform leverages an autonomous state machine to guide prospects from intake to booking and seamlessly hand off hot prospects to human sales directors when price negotiations occur. The platform runs fully locally in an offline demo mode with zero dependencies, but supports optional live OpenAI GPT-4o-mini integrations.
 
