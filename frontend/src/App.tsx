@@ -5,6 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { FutureScope } from './components/FutureScope';
 import { mockChats } from './data/mockChats';
 import { mockDashboardStats } from './data/mockDashboard';
+import { mockProperties } from './data/mockProperties';
 import { CustomerSession, Message, DashboardStats } from './types';
 import { Cpu } from 'lucide-react';
 
@@ -127,8 +128,8 @@ export const App: React.FC = () => {
 
             setSessions(prev => prev.map(s => {
               if (s.id === activeSessionId) {
-                const isBooking = resData.intent === 'site_visit' && cardData;
-                const isEscalation = resData.intent === 'escalation_request' || resData.conversation_stage === 'escalation';
+                const isBooking = (resData.intent === 'site_visit' || resData.intent === 'site_visit_booking') && cardData;
+                const isEscalation = resData.intent === 'escalation_request' || resData.intent === 'human_escalation' || resData.conversation_stage === 'escalation';
 
                 const newSession: CustomerSession = {
                   ...s,
@@ -197,23 +198,78 @@ export const App: React.FC = () => {
       let cardType: Message['cardType'] = undefined;
       let cardData: any = undefined;
       let score = activeSession ? activeSession.leadScore : 50;
+      let stage = activeSession ? activeSession.conversationStage : 'initial';
+      let nextAction = activeSession ? activeSession.nextAction : 'ask_qualification';
+      let isEscalated = activeSession ? activeSession.isEscalated : false;
+      let isBookingConfirmed = activeSession ? activeSession.isBookingConfirmed : false;
+      let bookingDetails = activeSession ? activeSession.bookingDetails : undefined;
 
-      if (lowerText.includes('negotiate') || lowerText.includes('agent') || lowerText.includes('call')) {
-        replyText = "Handoff triggered. Connecting you with our Senior Sales Executive right now. AI automated flows have been paused.";
+      const hasKeywords = (kws: string[]) => kws.some(kw => lowerText.includes(kw));
+
+      let detectedIntent = "greeting";
+
+      if (hasKeywords(['agent', 'connect', 'negotiate', 'negotiation', 'human', 'director', 'manager', 'speak to'])) {
+        detectedIntent = "human_escalation";
+        replyText = "Understood. I have flagged your profile for custom price negotiation on our premium inventory. To secure the best terms, I have paused automated AI workflows and routed you directly to our Senior Sales Director. He will contact you shortly.";
         cardType = 'escalation';
-        cardData = { agentName: 'Mr. Vikram Rathore', phone: '+91 99999 88888' };
+        cardData = { agentName: 'Mr. Vikram Rathore (Senior Sales Director)', phone: '+91 99999 88888' };
         score = 95;
-      } else if (lowerText.includes('visit') || lowerText.includes('book')) {
-        replyText = "Site visit confirmed! Here is your booking card. Rohan Sharma will guide your physical tour.";
+        stage = 'escalation';
+        nextAction = 'completed';
+        isEscalated = true;
+      } else if (hasKeywords(['book', 'visit', 'tour', 'schedule', 'appointment'])) {
+        detectedIntent = "site_visit_booking";
+        const requestedDay = lowerText.includes('sunday') ? 'This Sunday (May 31)' : 'This Saturday (May 30)';
+        const requestedTime = (lowerText.includes('morning') || lowerText.includes('11')) ? '11:00 AM' : '4:00 PM';
+        replyText = "Your physical site inspection has been confirmed. A dedicated investment advisor will guide you through the plot borders, layout maps, and clear title documentation. Here are your booking details:";
         cardType = 'booking';
-        cardData = { date: 'This Saturday (May 30)', time: '11:00 AM', plotName: 'Green Meadows Phase 1', agentName: 'Rohan Sharma', status: 'Confirmed' };
-        score = 88;
+        cardData = { date: requestedDay, time: requestedTime, plotName: 'Green Meadows Phase 1 (Plot A12)', agentName: 'Rohan Sharma', status: 'Confirmed' };
+        score = 90;
+        stage = 'completed';
+        nextAction = 'completed';
+        isBookingConfirmed = true;
+        bookingDetails = cardData;
+      } else if (hasKeywords(['investment', 'roi', 'returns', 'appreciation'])) {
+        detectedIntent = "investment_query";
+        replyText = "Green Meadows Phase-II has shown projected appreciation of 18–22% YoY due to upcoming ORR connectivity and IT corridor expansion.";
+        cardType = 'property';
+        cardData = mockProperties[0];
+        score = Math.min(score + 10, 95);
+        if (stage === 'initial') stage = 'qualifying';
+        else if (stage === 'qualifying') stage = 'recommending';
+        nextAction = 'suggest_site_visit';
+      } else if (hasKeywords(['emi', 'loan', 'finance', 'installment'])) {
+        detectedIntent = "emi_query";
+        replyText = "Flexible EMI plans starting from ₹24,500/month are available through partnered banking institutions.";
+        cardType = 'emi_plan';
+        cardData = { plotPrice: '₹55,00,000' };
+        score = Math.min(score + 5, 95);
+        if (stage === 'initial') stage = 'qualifying';
+        else if (stage === 'qualifying') stage = 'recommending';
+        nextAction = 'suggest_site_visit';
+      } else if (hasKeywords(['hmda', 'approved', 'dtcp', 'legal'])) {
+        detectedIntent = "compliance_query";
+        replyText = "All highlighted properties are HMDA & DTCP approved with verified legal documentation.";
+        score = Math.min(score + 5, 95);
+        if (stage === 'initial') stage = 'qualifying';
+        else if (stage === 'qualifying') stage = 'recommending';
+        nextAction = 'suggest_site_visit';
+      } else if (hasKeywords(['price', 'plot', 'budget', 'cost'])) {
+        detectedIntent = "pricing_query";
+        replyText = "Based on your budget, Plot A12 at Green Meadows is the strongest investment match.";
+        cardType = 'property';
+        cardData = mockProperties[0];
+        score = Math.min(score + 10, 95);
+        if (stage === 'initial') stage = 'qualifying';
+        else if (stage === 'qualifying') stage = 'recommending';
+        nextAction = 'suggest_site_visit';
       } else {
-        replyText = "Thank you for contacting PropAgent support. Let me search our databases to recommend you the best plots. What budget range are you looking at?";
-        score = Math.min(score + 10, 90);
+        detectedIntent = "greeting";
+        replyText = "Welcome to PropAgent AI Sales Assistant. I can assist you with verifying HMDA layout approvals, calculating plot EMI options, scheduling site visits, or matching plots. Let's begin with your target budget and location preference.";
+        score = Math.min(score + 5, 90);
       }
 
-      const temp: CustomerSession['leadTemperature'] = score >= 85 ? 'Hot' : score >= 50 ? 'Warm' : 'Cold';
+      const temp: CustomerSession['leadTemperature'] = isEscalated ? 'Escalated' : score >= 85 ? 'Hot' : score >= 50 ? 'Warm' : 'Cold';
 
       const aiMsg: Message = {
         id: `msg-sim-${Date.now()}`,
@@ -229,18 +285,31 @@ export const App: React.FC = () => {
           const updated: CustomerSession = {
             ...s,
             leadScore: score,
-            leadTemperature: cardType === 'escalation' ? 'Escalated' : temp,
+            leadTemperature: temp,
             buyingProbability: Math.round(score * 0.98),
-            isEscalated: cardType === 'escalation',
-            isBookingConfirmed: cardType === 'booking',
-            bookingDetails: cardType === 'booking' ? cardData : s.bookingDetails,
+            conversationStage: stage,
+            nextAction,
+            isEscalated,
+            isBookingConfirmed,
+            bookingDetails,
             currentWorkflowSteps: [
               'Bypassed backend API. Loaded local fallback agent.',
-              `Intent detected: greeting (Local Fallback)`,
-              `Recalculated Lead Score: ${score}`
+              `Intent detected: ${detectedIntent} (Local Fallback)`,
+              `Recalculated Lead Score: ${score}`,
+              `Stage transition: ${s.conversationStage} -> ${stage}`
             ],
             messages: [...updatedMessages, aiMsg]
           };
+
+          // Sync milestones
+          updated.journeyMilestones = updated.journeyMilestones.map(m => {
+            if (m.id === 'm2' && score >= 50) return { ...m, status: 'completed', timestamp: 'Active' };
+            if (m.id === 'm3' && stage === 'recommending') return { ...m, status: 'completed', timestamp: 'Active' };
+            if (m.id === 'm4' && updated.isBookingConfirmed) return { ...m, status: 'completed', timestamp: 'Active' };
+            if (m.id === 'm5' && updated.isEscalated) return { ...m, status: 'completed', timestamp: 'Active' };
+            return m;
+          });
+
           return updated;
         }
         return s;

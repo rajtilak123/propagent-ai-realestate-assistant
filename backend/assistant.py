@@ -27,25 +27,18 @@ def load_prompt_file(filename: str) -> str:
 def detect_intent(message: str) -> Tuple[str, float]:
   text = clean_str(message)
   
-  # Check rules (Fallback NLP Classifier)
-  if text.match_any(["negotiate", "discount", "less price", "offer"]):
-    return "negotiation", 0.98
-  elif text.match_any(["agent", "human", "call me", "phone", "director", "manager", "support", "speak to", "contact"]):
-    return "escalation_request", 0.99
-  elif text.match_any(["visit", "schedule", "tomorrow", "saturday", "sunday", "tour", "appointment", "go see"]):
-    return "site_visit", 0.95
-  elif text.match_any(["book", "reserve", "token", "downpayment", "down payment", "buying"]):
-    return "booking_request", 0.92
-  elif text.match_any(["emi", "loan", "bank", "finance", "scheme", "mortgage"]):
-    return "emi_query", 0.94
-  elif text.match_any(["hmda", "dtcp", "rera", "approved", "approvals", "documents", "clear title", "legal"]):
-    return "documents_query", 0.93
-  elif text.match_any(["price", "cost", "how much", "rate", "sq yard", "per sq"]):
-    return "pricing_query", 0.96
-  elif text.match_any(["appreciation", "investment", "future growth", "return", "returns", "profit"]):
-    return "investment_query", 0.89
-  elif text.match_any(["plot", "project", "layout", "sizes", "size", "facing", "details"]):
-    return "property_inquiry", 0.85
+  if text.match_any(["agent", "connect", "negotiation", "human", "negotiate", "discount", "less price", "offer", "call me", "phone", "director", "manager", "support", "speak to", "contact"]):
+    return "human_escalation", 0.99
+  elif text.match_any(["book", "visit", "tour", "schedule", "tomorrow", "saturday", "sunday", "appointment", "go see"]):
+    return "site_visit_booking", 0.95
+  elif text.match_any(["investment", "roi", "returns", "appreciation", "future growth", "return", "profit"]):
+    return "investment_query", 0.94
+  elif text.match_any(["emi", "loan", "finance", "installment", "bank", "scheme", "mortgage"]):
+    return "emi_query", 0.93
+  elif text.match_any(["hmda", "approved", "dtcp", "legal", "approvals", "documents", "clear title", "rera"]):
+    return "compliance_query", 0.92
+  elif text.match_any(["price", "plot", "budget", "cost", "how much", "rate", "sq yard", "per sq", "lakh", "lakhs", "cr", "crore"]):
+    return "pricing_query", 0.91
   elif text.match_any(["hi", "hello", "hey", "greet", "good morning", "good evening"]):
     return "greeting", 0.97
   
@@ -151,15 +144,21 @@ def transition_stage(session: Dict[str, Any], intent: str):
   current_stage = session.get("conversationStage", "initial")
   
   # Logical state loops
-  if intent == "escalation_request" or intent == "negotiation":
+  if intent in ["human_escalation", "escalation_request", "negotiation"]:
     session["conversationStage"] = "escalation"
+  elif intent in ["site_visit_booking", "site_visit", "booking_request"]:
+    session["conversationStage"] = "booking"
+  elif intent in ["investment_query", "emi_query", "compliance_query", "pricing_query"]:
+    if current_stage == "initial":
+      session["conversationStage"] = "qualifying"
+    elif current_stage == "qualifying":
+      session["conversationStage"] = "recommending"
   elif current_stage == "initial" and intent == "greeting":
     session["conversationStage"] = "qualifying"
   elif current_stage == "qualifying" and session.get("memory", {}).get("budget"):
     session["conversationStage"] = "recommending"
-  elif current_stage == "recommending" and intent in ["site_visit", "booking_request"]:
-    session["conversationStage"] = "booking"
-  elif session.get("isBookingConfirmed"):
+  
+  if session.get("isBookingConfirmed"):
     session["conversationStage"] = "completed"
 
 # 5. Next Best Action Engine
@@ -201,6 +200,10 @@ def process_agent_message(session_id: str, message_text: str) -> Dict[str, Any]:
   # Intent Detection
   intent, confidence = detect_intent(message_text)
   workflow_steps.append(f"Intent classified: {intent} ({int(confidence * 100)}% confidence)")
+
+  # Analytics event logging
+  print(f"[Analytics Event] Session: {session_id} | Intent: {intent} | Confidence: {confidence:.2f}")
+  workflow_steps.append(f"Analytics event logged: {intent}")
 
   # Memory Updates
   memory_updates = update_memory(session, message_text)
@@ -306,7 +309,7 @@ def generate_local_response_and_cards(
   card_type = None
   card_data = {}
 
-  if intent == "escalation_request" or intent == "negotiation":
+  if intent in ["human_escalation", "escalation_request", "negotiation"]:
     reply = "Understood. I have flagged your profile for custom price negotiation on our premium inventory. To secure the best terms, I have paused automated AI workflows and routed you directly to our Senior Sales Director. He will contact you shortly."
     card_type = "escalation"
     card_data = {
@@ -317,7 +320,7 @@ def generate_local_response_and_cards(
     session["conversationStage"] = "escalation"
     session["nextAction"] = "completed"
 
-  elif intent == "site_visit":
+  elif intent in ["site_visit_booking", "site_visit"]:
     requested_day = "This Sunday (May 31)" if "sunday" in text else "This Saturday (May 30)"
     requested_time = "11:00 AM" if "morning" in text or "11" in text else "4:00 PM"
     
@@ -338,36 +341,32 @@ def generate_local_response_and_cards(
     session["bookingDetails"] = card_data
     session["conversationStage"] = "completed"
 
-  elif intent == "pricing_query" or intent == "property_inquiry":
-    if recommendations:
-      best_match = recommendations[0]
-      memory["viewedProperties"] = [best_match["id"]]
-      session["memory"] = memory
-      
-      reply = f"Based on your requirements, the best-matched property is {best_match['name']} in {best_match['location']}. It matches {best_match['matchScore']}% of your preferences and is projected for {best_match['appreciationPotential']} due to the surrounding IT corridor expansion."
-      card_type = "property"
-      card_data = best_match
-    else:
-      reply = "We offer premium gated community plots in Mokila and Shankarpally starting from ₹28 Lakhs. Please share your target budget and location to view specific matching options."
+  elif intent in ["pricing_query", "property_inquiry"]:
+    best_match = recommendations[0] if recommendations else knowledge_service.get_recommendations({}).pop(0)
+    memory["viewedProperties"] = [best_match["id"]]
+    session["memory"] = memory
+    reply = "Based on your budget, Plot A12 at Green Meadows is the strongest investment match."
+    card_type = "property"
+    card_data = best_match
 
   elif intent == "investment_query":
-    if recommendations:
-      best_match = recommendations[0]
-      reply = f"Our developments in {best_match['location']} offer premium appreciation. {best_match['name']} projects a {best_match['appreciationPotential']} driven by infrastructure growth and direct road connectivity. Here is the matching investment profile:"
-      card_type = "property"
-      card_data = best_match
-    else:
-      reply = "Our development projects in Mokila and Shankarpally sit directly in high-growth corridors with projected annual capital gains of 18-22%. Please share your budget to view specific plot yields."
+    best_match = recommendations[0] if recommendations else knowledge_service.get_recommendations({}).pop(0)
+    reply = "Green Meadows Phase-II has shown projected appreciation of 18–22% YoY due to upcoming ORR connectivity and IT corridor expansion."
+    card_type = "property"
+    card_data = best_match
 
   elif intent == "emi_query":
-    reply = "We facilitate quick home loans via partner financial institutions (HDFC, ICICI, SBI) covering up to 80% of funding. Below are monthly EMI projections based on current interest rates:"
+    reply = "Flexible EMI plans starting from ₹24,500/month are available through partnered banking institutions."
     card_type = "emi_plan"
     card_data = {
       "plotPrice": "₹55,00,000"
     }
 
-  elif intent == "documents_query":
-    reply = "All layout plots in our catalog carry clear titles with 100% HMDA/DTCP legal approvals and active RERA registrations. We provide verified copy links and parent deeds for 30-year verification."
+  elif intent in ["compliance_query", "documents_query"]:
+    best_match = recommendations[0] if recommendations else knowledge_service.get_recommendations({}).pop(0)
+    reply = "All highlighted properties are HMDA & DTCP approved with verified legal documentation."
+    card_type = "property"
+    card_data = best_match
 
   elif intent == "booking_request":
     reply = "You can reserve any selected plot with a booking token of ₹1,00,000. We accept card payment, bank transfers, and immediate UPI. A formal booking receipt will be generated instantly."

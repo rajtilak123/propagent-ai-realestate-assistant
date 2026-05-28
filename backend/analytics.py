@@ -82,11 +82,20 @@ def calculate_dashboard_stats() -> Dict[str, Any]:
       desc = "completed lead qualification checklist"
       act_type = "qualification"
       
-    # Check user search intent specifically for ROI/Appreciation
+    # Check user search intent specifically for ROI/Appreciation, EMI, Compliance, and Pricing
     last_text = last_msg.get("text", "").lower()
-    if "appreciation" in last_text or "return" in last_text or "roi" in last_text:
+    if "appreciation" in last_text or "return" in last_text or "roi" in last_text or "investment" in last_text:
       desc = "requested ROI analysis"
-      act_type = "roi"
+      act_type = "recommendation"
+    elif "emi" in last_text or "loan" in last_text or "finance" in last_text or "installment" in last_text:
+      desc = "requested EMI calculation"
+      act_type = "recommendation"
+    elif "hmda" in last_text or "approved" in last_text or "dtcp" in last_text or "legal" in last_text or "rera" in last_text:
+      desc = "requested compliance approvals"
+      act_type = "recommendation"
+    elif "price" in last_text or "budget" in last_text or "cost" in last_text or "pricing" in last_text:
+      desc = "requested pricing/matching plots"
+      act_type = "recommendation"
       
     raw_activities.append({
       "time_val": time_val,
